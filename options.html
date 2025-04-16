@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrustPoint ServiceNow Data Analyzer Options</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.5;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    h1 {
+      color: #0070c0;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    
+    .form-section {
+      margin-bottom: 30px;
+    }
+    
+    .form-section h2 {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: #0070c0;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    
+    .form-group input, 
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    
+    .form-group textarea {
+      height: 100px;
+      resize: vertical;
+    }
+    
+    .form-controls {
+      display: flex;
+      justify-content: flex-end;
+    }
+    
+    button {
+      padding: 10px 20px;
+      background-color: #0070c0;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-left: 10px;
+    }
+    
+    button:hover {
+      background-color: #81bef1;
+    }
+    
+    button.secondary {
+      background-color: #f0f0f0;
+      color: #333;
+      border: 1px solid #ddd;
+    }
+    
+    button.secondary:hover {
+      background-color: #ddd;
+    }
+    
+    .status-message {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    
+    .success {
+      background-color: rgba(40, 167, 69, 0.2);
+      color: #28a745;
+    }
+    
+    .error {
+      background-color: rgba(220, 53, 69, 0.2);
+      color: #dc3545;
+    }
+    
+    .warning {
+      background-color: rgba(255, 193, 7, 0.2);
+      color: #856404;
+    }
+    
+    /* Toggle Switch */
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      margin-right: 10px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      -webkit-transition: .4s;
+      transition: .4s;
+      border-radius: 24px;
+    }
+    
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      -webkit-transition: .4s;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .toggle-slider {
+      background-color: #0070c0;
+    }
+    
+    input:focus + .toggle-slider {
+      box-shadow: 0 0 1px #0070c0;
+    }
+    
+    input:checked + .toggle-slider:before {
+      -webkit-transform: translateX(20px);
+      -ms-transform: translateX(20px);
+      transform: translateX(20px);
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .sn-credentials-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+    
+    .test-result {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 14px;
+      display: none;
+    }
+    
+    #loadingOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.85);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #0070c0;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 12px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Debug Console Styles */
+    .debug-console {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #f8f9fa;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .debug-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .debug-message {
+      margin-bottom: 5px;
+      padding: 3px 0;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .debug-message.info {
+      color: #0070c0;
+    }
+    
+    .debug-message.warn {
+      color: #856404;
+    }
+    
+    .debug-message.error {
+      color: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>TrustPoint ServiceNow Data Analyzer Options</h1>
+    
+    <div class="form-section">
+      <h2>API Configuration</h2>
+      <div class="form-group">
+        <label for="apiKeyInput">OpenAI API Key:</label>
+        <input type="password" id="apiKeyInput" placeholder="Enter your OpenAI API key">
+        <small>Your API key is stored locally and is only sent to OpenAI.</small>
+      </div>
+      
+      <div class="form-group">
+        <label for="modelSelect">Default AI Model:</label>
+        <select id="modelSelect">
+          <option value="gpt-4.1">GPT-4.1 (Default - Recommended)</option>
+          <option value="gpt-4">GPT-4</option>
+          <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="form-section">
+      <h2>ServiceNow Configuration</h2>
+      <div class="toggle-container">
+        <label class="toggle-switch">
+          <input type="checkbox" id="enableSN">
+          <span class="toggle-slider"></span>
+        </label>
+        <label for="enableSN">Enable ServiceNow Authentication</label>
+      </div>
+      
+      <div id="snCredentials" class="hidden">
+        <div class="form-group">
+          <label for="instanceInput">Instance:</label>
+          <input type="text" id="instanceInput" placeholder="e.g., dev12345">
+          <small>.service-now.com</small>
+        </div>
+        
+        <div class="form-group">
+          <label for="usernameInput">Username:</label>
+          <input type="text" id="usernameInput" placeholder="ServiceNow username">
+        </div>
+        
+        <div class="form-group">
+          <label for="passwordInput">Password:</label>
+          <input type="password" id="passwordInput" placeholder="ServiceNow password">
+          <small>Credentials are stored locally and only used to authenticate with your ServiceNow instance.</small>
+        </div>
+        
+        <div class="sn-credentials-actions">
+          <button id="testConnectionBtn" class="secondary">Test Connection</button>
+        </div>
+        
+        <div id="testResult" class="test-result"></div>
+      </div>
+    </div>
+    
+    <div class="form-section">
+      <h2>Data Extraction Customization</h2>
+      <div class="form-group">
+        <label for="extractionPatterns">Custom Extraction Patterns:</label>
+        <textarea id="extractionPatterns" placeholder="Enter custom CSS selectors to extract data from pages (JSON format)"></textarea>
+        <small>Advanced: Customize what data is extracted from pages with CSS selectors.</small>
+      </div>
+      
+      <div class="form-group">
+        <label for="maxRecords">Maximum Records Warning Threshold:</label>
+        <input type="number" id="maxRecords" min="1" max="1000" value="200">
+        <small>Show warning when extracted data exceeds this many records (to prevent exceeding OpenAI context limits).</small>
+      </div>
+    </div>
+    
+    <div class="form-section">
+      <h2>Chat Customization</h2>
+      <div class="form-group">
+        <label for="systemPrompt">Default System Prompt:</label>
+        <textarea id="systemPrompt" placeholder="Enter the default system prompt for the AI"></textarea>
+        <small>This sets the context for the AI's responses. Default: "You are an assistant analyzing data from TrustPoint ServiceNow Data Analyzer Chrome extension."</small>
+      </div>
+    </div>
+    
+    <div class="form-section">
+      <h2>Debug Options</h2>
+      <div class="toggle-container">
+        <label class="toggle-switch">
+          <input type="checkbox" id="enableDebug">
+          <span class="toggle-slider"></span>
+        </label>
+        <label for="enableDebug">Enable Debug Mode</label>
+      </div>
+      <small>When enabled, detailed debug information will be logged to help troubleshoot issues.</small>
+      
+      <div id="debugOptions" class="hidden">
+        <div class="form-group">
+          <div class="toggle-container">
+            <label class="toggle-switch">
+              <input type="checkbox" id="showConsole">
+              <span class="toggle-slider"></span>
+            </label>
+            <label for="showConsole">Show Debug Console</label>
+          </div>
+        </div>
+        
+        <div id="debugConsoleContainer" class="hidden">
+          <div class="debug-controls">
+            <h3>Debug Console</h3>
+            <button id="clearConsoleBtn" class="secondary">Clear Console</button>
+          </div>
+          <div id="debugConsole" class="debug-console"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-controls">
+      <button id="resetBtn" class="secondary">Reset to Defaults</button>
+      <button id="saveBtn">Save Options</button>
+    </div>
+    
+    <div id="statusMessage" class="status-message" style="display: none;"></div>
+  </div>
+  
+  <div id="loadingOverlay" class="hidden">
+    <div class="loader"></div>
+    <p id="processingMessage">Processing...</p>
+  </div>
+  
+  <script src="options.js"></script>
+</body>
+</html>

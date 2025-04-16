@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrustPoint ServiceNow Data Analyzer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>TrustPoint ServiceNow Data Analyzer</h1>
+      <div class="tabs">
+        <button id="dataTab" class="tab-btn active">Data</button>
+        <button id="chatTab" class="tab-btn">Chat Analysis</button>
+        <button id="settingsTab" class="tab-btn">Settings</button>
+      </div>
+    </header>
+
+    <div id="dataPanel" class="panel active">
+      <div class="control-panel">
+        <div class="extraction-controls">
+          <button id="extractBtn">Extract Data</button>
+          <select id="formatSelect">
+            <option value="json">JSON</option>
+            <option value="xml">XML</option>
+          </select>
+        </div>
+        <div class="data-controls">
+          <button id="downloadBtn">Download</button>
+          <button id="clearDataBtn">Clear Data</button>
+        </div>
+      </div>
+      
+      <div id="warningBanner" class="warning-banner hidden">
+        <span id="warningMessage"></span>
+        <button id="closeWarningBtn">×</button>
+      </div>
+      
+      <div class="data-display">
+        <h3>Extracted Data</h3>
+        <div class="data-view-controls">
+          <button id="rawViewBtn" class="view-btn active">Raw</button>
+          <button id="tableViewBtn" class="view-btn">Table</button>
+        </div>
+        <div id="rawDataView" class="data-view active">
+          <pre id="extractedData">No data extracted yet.</pre>
+        </div>
+        <div id="tableDataView" class="data-view">
+          <div id="tableContainer">Select a table to view</div>
+          <div class="table-controls">
+            <select id="tableSelect" class="hidden"></select>
+          </div>
+        </div>
+      </div>
+      
+      <div class="sn-query-panel">
+        <h3>ServiceNow Query</h3>
+        <div class="query-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="tableInput">Table</label>
+              <input type="text" id="tableInput" placeholder="e.g., incident, change_request">
+            </div>
+            <div class="form-group">
+              <label for="limitInput">Limit</label>
+              <input type="number" id="limitInput" min="1" max="1000" value="100">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="queryInput">Query</label>
+              <input type="text" id="queryInput" placeholder="e.g., active=true^priority=1">
+            </div>
+            <button id="queryBtn">Run Query</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="chatPanel" class="panel">
+      <div class="chat-container">
+        <div id="chatHistory" class="chat-history"></div>
+        <div class="chat-input">
+          <textarea id="userMessage" placeholder="Ask about the extracted data..."></textarea>
+          <button id="sendBtn">Send</button>
+        </div>
+        <div class="chat-controls">
+          <button id="clearChatBtn">Clear Chat</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="settingsPanel" class="panel">
+      <div class="settings-form">
+        <div class="settings-section">
+          <h3>OpenAI Settings</h3>
+          <div class="form-group">
+            <label for="apiKeyInput">OpenAI API Key:</label>
+            <input type="password" id="apiKeyInput" placeholder="Enter your OpenAI API key">
+            <button id="testOpenAIBtn" class="test-btn">Test Connection</button>
+          </div>
+          <div class="form-group">
+            <label for="modelSelect">OpenAI Model:</label>
+            <select id="modelSelect">
+              <option value="gpt-4.1">GPT-4.1 (Default)</option>
+              <option value="gpt-4">GPT-4</option>
+              <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="settings-section">
+          <h3>ServiceNow Authentication</h3>
+          <div class="form-group">
+            <div class="toggle-container">
+              <label class="toggle-switch">
+                <input type="checkbox" id="enableSN">
+                <span class="toggle-slider"></span>
+              </label>
+              <label for="enableSN">Enable ServiceNow Authentication</label>
+            </div>
+          </div>
+          <div id="snCredentials" class="hidden">
+            <div class="form-group">
+              <label for="instanceInput">Instance:</label>
+              <input type="text" id="instanceInput" placeholder="e.g., dev12345">
+              <small>.service-now.com</small>
+            </div>
+            <div class="form-group">
+              <label for="usernameInput">Username:</label>
+              <input type="text" id="usernameInput" placeholder="ServiceNow username">
+            </div>
+            <div class="form-group">
+              <label for="passwordInput">Password:</label>
+              <input type="password" id="passwordInput" placeholder="ServiceNow password">
+            </div>
+            <div class="sn-test-container">
+              <button id="testSNBtn" class="test-btn">Test Connection</button>
+              <div id="snTestResult" class="test-result"></div>
+            </div>
+          </div>
+        </div>
+        
+        <button id="saveSettingsBtn">Save Settings</button>
+        <div id="settingsMessage" class="settings-message"></div>
+      </div>
+    </div>
+
+    <div id="loadingOverlay" class="hidden">
+      <div class="progress-container">
+        <div id="progressBar" class="progress-bar">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <p id="progressPercentage">0%</p>
+      </div>
+      <p id="processingMessage">Processing...</p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

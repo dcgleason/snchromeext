@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "SN Data Analyzer",
+  "version": "1.0",
+  "description": "A Chrome extension with data persistence and OpenAI chat analysis for ServiceNow",
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://api.openai.com/*",
+    "https://*.service-now.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "images/icon16.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html"
+}

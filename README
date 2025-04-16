@@ -1,0 +1,28 @@
+# Icon Files
+
+The extension requires the following icon files in the `/images` directory:
+
+- `icon-16.png` (16x16)
+- `icon-32.png` (32x32)
+- `icon-48.png` (48x48)
+- `icon-128.png` (128x128)
+
+You can create these icons using any image editor software. The icons should represent the extension's functionality (ServiceNow to OpenAI integration).
+
+## Creating Icons
+
+1. Use a simple, recognizable design that works well at small sizes
+2. Ensure your design works in both light and dark browser themes
+3. Save in PNG format with transparency
+4. Make sure all sizes are properly scaled versions of the same design
+
+## Example Design Ideas
+
+- A combination of the ServiceNow and OpenAI logos
+- A stylized "SN" with an AI symbol
+- A data transformation icon (e.g., XML to chat bubbles)
+- A brain icon with database symbols
+
+## Placing Icons
+
+Place all icon files in the `/images` directory of your extension.
