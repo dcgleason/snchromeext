@@ -264,29 +264,25 @@ async function handleOpenAIChat(request, sendResponse) {
         
         // Parse assistant text from Responses API
         let assistantText = '';
-        function extractText(contents) {
-          return contents
-            .filter(item => item.type === 'output_text' && item.text)
-            .map(item => item.text)
-            .join('');
-        }
-        if (Array.isArray(data)) {
-          for (const event of data) {
-            if (event.content && Array.isArray(event.content)) {
-              assistantText += extractText(event.content);
-            }
-          }
-          
-        } else if (typeof data.output_text === 'string') {
+        // Use helper output_text if present
+        if (typeof data.output_text === 'string' && data.output_text) {
           assistantText = data.output_text;
-        } else if (data.content && Array.isArray(data.content)) {
-          assistantText = extractText(data.content);
-        } else if (Array.isArray(data.output)) {
-          for (const event of data.output) {
-            if (event.content && Array.isArray(event.content)) {
-              assistantText += extractText(event.content);
+        }
+        // Otherwise, process the output array for message events
+        else if (Array.isArray(data.output)) {
+          for (const item of data.output) {
+            if (item.type === 'message' && Array.isArray(item.content)) {
+              for (const contentItem of item.content) {
+                if (contentItem.type === 'output_text' && contentItem.text) {
+                  assistantText += contentItem.text;
+                }
+              }
             }
           }
+        }
+        // Legacy fallback to result.content
+        else if (data.result && typeof data.result.content === 'string') {
+          assistantText = data.result.content;
         }
         logDebug(`Parsed assistant text: ${assistantText}`, 'info');
         // Update chat history
