@@ -1,3 +1,5 @@
+// Popup script entry point
+console.log('[Extension Popup] popup.js loaded');
 // Immediately hide loading overlay to prevent stuck state
 document.addEventListener('DOMContentLoaded', function() {
   // Forcibly hide the loading overlay as the very first action

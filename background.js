@@ -1,4 +1,5 @@
 // Background script for persistence
+console.log('[Extension Background] background.js loaded');
 // Register onInstalled listener (guarded against missing API)
 try {
   chrome.runtime.onInstalled.addListener(() => {
@@ -43,8 +44,9 @@ try {
   console.error('[Background] runtime.onInstalled.addListener failed:', e);
 }
 
-// Listen for messages from popup or content scripts
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+// Listen for messages from popup or content scripts (guarded)
+try {
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   try {
     // Handle debug logging
     if (request.action === "logDebug") {
@@ -108,7 +110,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ error: "Internal extension error: " + error.message });
     return true;
   }
-});
+  });
+} catch (e) {
+  console.error('[Background] runtime.onMessage.addListener failed:', e);
+}
 
 // Handle debug logging
 function handleDebugLog(message, level, timestamp) {
