@@ -1074,26 +1074,43 @@ function initializeExtension() {
       const assistantElem = appendMessage('assistant', 'AI is typing...');
       debugLog('Assistant typing placeholder added');
       // Send to background script for API call
+      console.log('[Chat] Sending request to background script:', message);
       chrome.runtime.sendMessage(
         { action: 'openaiChat', message: message },
         (response) => {
-          if (!assistantElem) return;
+          console.log('[Chat] Response from background script:', response);
           if (!response) {
-            assistantElem.classList.add('error');
-            const errBody = assistantElem.querySelector('.message-body');
-            if (errBody) errBody.textContent = 'No response received from extension backend';
+            console.error('[Chat] No response received from background script');
+            if (assistantElem) {
+              assistantElem.classList.add('error');
+              const errBody = assistantElem.querySelector('.message-body');
+              if (errBody) errBody.textContent = 'No response received from extension backend. Please check the console for errors.';
+            }
             debugLog('No response received from extension backend', 'error');
             return;
           }
           if (response.error) {
-            assistantElem.classList.add('error');
-            const errBody = assistantElem.querySelector('.message-body');
-            if (errBody) errBody.textContent = `Error: ${response.error}`;
+            console.error('[Chat] OpenAI error:', response.error);
+            if (assistantElem) {
+              assistantElem.classList.add('error');
+              const errBody = assistantElem.querySelector('.message-body');
+              if (errBody) errBody.textContent = `Error: ${response.error}`;
+            }
             debugLog('OpenAI error: ' + response.error, 'error');
-          } else {
-            const body = assistantElem.querySelector('.message-body');
-            if (body) body.textContent = response.reply;
+          } else if (response.reply) {
+            if (assistantElem) {
+              const body = assistantElem.querySelector('.message-body');
+              if (body) body.textContent = response.reply;
+            }
             debugLog('Added AI response to chat');
+          } else {
+            console.error('[Chat] Empty response from AI');
+            if (assistantElem) {
+              assistantElem.classList.add('error');
+              const errBody = assistantElem.querySelector('.message-body');
+              if (errBody) errBody.textContent = 'Received empty response from AI';
+            }
+            debugLog('Empty response from AI', 'error');
           }
         }
       );

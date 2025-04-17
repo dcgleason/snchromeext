@@ -212,29 +212,27 @@ async function handleOpenAIChat(request, sendResponse) {
         logDebug('Using original JSON data instead of XML for API call', 'info');
       }
 
-      // Call OpenAI API with prepared messages
-      logDebug('Sending request to OpenAI API', 'info');
-      
+      // Call OpenAI Chat Completions API with prepared messages
+      logDebug('Sending request to OpenAI Chat Completions API', 'info');
       try {
         // Prepare system message content including extracted data once
-   // Prepare developer message content including extracted data once
-          const dataForSystem = JSON.stringify(extractedDataForAPI);
-          const messagesPayload = [
-            {
-              role: "developer",  // Change from "system" to "developer"
-              content: systemPrompt + "\n\nExtracted Data: " + dataForSystem
-            },
-            // Map existing chat history roles
-            ...result.chatHistory.map(msg => ({
-              role: msg.role === "system" ? "developer" : msg.role,
-              content: msg.content
-            })),
-            {
-              role: "user",
-              content: userMessage
-            }
-          ];
-        const response = await fetch('https://api.openai.com/v1/responses', {
+        const dataForSystem = JSON.stringify(extractedDataForAPI);
+        const messagesPayload = [
+          {
+            role: "system",
+            content: systemPrompt + "\n\nExtracted Data: " + dataForSystem
+          },
+          // Map existing chat history roles
+          ...result.chatHistory.map(msg => ({
+            role: msg.role,
+            content: msg.content
+          })),
+          {
+            role: "user",
+            content: userMessage
+          }
+        ];
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -242,7 +240,7 @@ async function handleOpenAIChat(request, sendResponse) {
           },
           body: JSON.stringify({
             model: model,
-            input: messagesPayload,
+            messages: messagesPayload
           })
         });
 
@@ -255,36 +253,20 @@ async function handleOpenAIChat(request, sendResponse) {
         const data = await response.json();
         logDebug('Received successful response from OpenAI', 'info');
         
-        // If there's an error key, report it
-        if (data.error) {
-          logDebug(`OpenAI returned error: ${data.error.message}`, 'error');
-          sendResponse({ error: data.error.message });
+        // Parse assistant response from Chat Completions API
+        let assistantText = '';
+        if (data.choices && data.choices.length > 0) {
+          const choice = data.choices[0];
+          if (choice.message && choice.message.content) {
+            assistantText = choice.message.content;
+            logDebug(`Parsed assistant text from choices: ${assistantText.substring(0, 50)}...`, 'info');
+          }
+        } else {
+          logDebug('No choices found in response', 'warn');
+          console.log('Full response:', data);
+          sendResponse({ error: 'No response content found in API response' });
           return;
         }
-        
-        // Parse assistant text from Responses API
-        let assistantText = '';
-        // Use helper output_text if present
-        if (typeof data.output_text === 'string' && data.output_text) {
-          assistantText = data.output_text;
-        }
-        // Otherwise, process the output array for message events
-        else if (Array.isArray(data.output)) {
-          for (const item of data.output) {
-            if (item.type === 'message' && Array.isArray(item.content)) {
-              for (const contentItem of item.content) {
-                if (contentItem.type === 'output_text' && contentItem.text) {
-                  assistantText += contentItem.text;
-                }
-              }
-            }
-          }
-        }
-        // Legacy fallback to result.content
-        else if (data.result && typeof data.result.content === 'string') {
-          assistantText = data.result.content;
-        }
-        logDebug(`Parsed assistant text: ${assistantText}`, 'info');
         // Update chat history
         const updatedHistory = [
           ...result.chatHistory,
