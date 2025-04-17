@@ -194,18 +194,22 @@ function initializeExtension() {
       }
       
       try {
-        updateProgress(10, "Analyzing page structure");
-        debugLog('Analyzing page structure');
-        
-        // Execute content script to extract data with incremental progress updates
-        chrome.scripting.executeScript({
-          target: { tabId: tabs[0].id },
-          function: extractDataFromPage,
-          args: [currentFormat]
-        }).then(results => {
-          // Update progress as we receive data
-          updateProgress(30, "Processing extracted elements");
-          debugLog('Content script executed, processing results');
+      updateProgress(10, "Analyzing page structure");
+      debugLog('Analyzing page structure');
+      
+      // Prepare to inject extraction script
+      updateProgress(15, "Injecting extraction script into page");
+      debugLog('Injecting extraction script');
+      
+      // Execute content script to extract data with incremental progress updates
+      chrome.scripting.executeScript({
+        target: { tabId: tabs[0].id },
+        func: extractDataFromPage,
+        args: [currentFormat]
+      }).then(results => {
+        // Extraction script completed, now processing elements
+        updateProgress(30, "Processing extracted elements");
+        debugLog('Content script executed, processing results');
           
           if (!results || results.length === 0 || !results[0]) {
             hideLoading();
@@ -253,8 +257,8 @@ function initializeExtension() {
     debugLog('Processing extracted data with progress updates');
     
     // Check for large record count
-    updateProgress(startProgress + 10, "Checking data size");
-    debugLog('Checking data size and displaying warnings if needed');
+    updateProgress(startProgress + 10, "Checking record count");
+    debugLog('Checking record count and displaying warnings if needed');
     checkAndDisplayWarning(data);
     
     // Calculate progress increment based on record count
@@ -329,86 +333,101 @@ function initializeExtension() {
   }
 
   // ServiceNow Query functionality
-  if (queryBtn) queryBtn.addEventListener('click', () => {
-    if (!tableInput || !tableInput.value.trim()) {
-      showWarning('Please enter a table name');
-      debugLog('ServiceNow query attempted without a table name', 'warn');
-      return;
-    }
-    
-    const table = tableInput.value.trim();
-    const limit = limitInput.value;
-    const query = queryInput.value.trim();
-    const format = formatSelect.value;
-    
-    showLoading("Connecting to ServiceNow...");
-    updateProgress(10, "Establishing connection");
-    debugLog(`Starting ServiceNow query: ${table} (limit=${limit}, format=${format})`);
-    if (query) {
-      debugLog(`Query: ${query}`);
-    }
-    
-    // Build query parameters
-    const params = {
-      sysparm_limit: limit,
-      format: format
-    };
-    
-    if (query) {
-      params.sysparm_query = query;
-    }
-    
-    // Call the background script to make the API request
-    updateProgress(20, "Authenticating with ServiceNow");
-    debugLog('Authenticating with ServiceNow');
-    
-    setTimeout(() => {
-      updateProgress(30, "Sending query to ServiceNow");
-      debugLog('Sending query to ServiceNow');
-    }, 500);
-    
-    chrome.runtime.sendMessage({
-      action: "fetchServiceNowData",
-      endpoint: table,
-      params: params
-    }, (response) => {
-      if (!response) {
-        hideLoading();
-        showWarning("No response received from the extension backend");
-        debugLog('No response received from extension backend', 'error');
+  if (queryBtn) {
+    queryBtn.addEventListener('click', async () => {
+      // Validate table input
+      const table = tableInput?.value.trim();
+      if (!table) {
+        showWarning('Please enter a table name');
+        debugLog('ServiceNow query attempted without a table name', 'warn');
         return;
       }
-      
-      if (response.error) {
+      const limit = limitInput.value;
+      const query = queryInput.value.trim();
+      const format = formatSelect.value;
+
+      showLoading('Connecting to ServiceNow...');
+      updateProgress(10, 'Establishing connection');
+      debugLog(`Starting ServiceNow query: ${table} (limit=${limit}, format=${format})`);
+      if (query) debugLog(`Query: ${query}`);
+
+      try {
+        // Load credentials
+        const credsResult = await new Promise(resolve =>
+          chrome.storage.local.get(['snCredentials'], resolve)
+        );
+        const creds = credsResult.snCredentials;
+        if (!creds || !creds.enabled || !creds.instance || !creds.username || !creds.password) {
+          throw new Error('ServiceNow credentials not found or incomplete. Please configure them in settings.');
+        }
+
+        updateProgress(20, 'Authenticating with ServiceNow');
+        debugLog('Authenticating with ServiceNow');
+
+        // Build request URL
+        let url = `https://${creds.instance}.service-now.com/api/now/table/${table}`;
+        const paramsObj = new URLSearchParams();
+        if (limit) paramsObj.append('sysparm_limit', limit);
+        if (query) paramsObj.append('sysparm_query', query);
+        if (format) paramsObj.append('format', format);
+        url += `?${paramsObj.toString()}`;
+
+        updateProgress(30, 'Sending query to ServiceNow');
+        debugLog('Sending query to ServiceNow');
+
+        // Perform fetch
+        const basicAuth = 'Basic ' + btoa(`${creds.username}:${creds.password}`);
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': basicAuth,
+            'Content-Type': 'application/json',
+            'Accept': format === 'xml' ? 'application/xml' : 'application/json'
+          }
+        });
+
+        updateProgress(40, `Received response: HTTP ${response.status}`);
+        debugLog(`ServiceNow response status: ${response.status}`);
+
+        if (!response.ok) {
+          let errMsg = `HTTP error ${response.status}`;
+          try {
+            const errData = await response.json();
+            if (errData.error?.message) errMsg = errData.error.message;
+          } catch {}
+          throw new Error(`ServiceNow API error: ${errMsg}`);
+        }
+
+        // Parse response
+        let data;
+        if (format === 'xml') {
+          const xmlText = await response.text();
+          data = { xmlData: xmlText, format: 'xml' };
+          debugLog('Parsed XML response');
+        } else {
+          data = await response.json();
+          data.format = 'json';
+          debugLog(`Parsed JSON response with ${Array.isArray(data.result) ? data.result.length : 0} records`);
+        }
+
+        // Warning for large data sets
+        if (data.result && Array.isArray(data.result) && data.result.length > 200) {
+          const warnMsg = `Warning: The data contains ${data.result.length} records, which may exceed the context window limit.`;
+          showWarning(warnMsg);
+          debugLog(warnMsg, 'warn');
+        }
+
+        // Process and display results with progress
+        const recordCount = getRecordCount(data);
+        processQueryResponseWithProgress(data, recordCount, 50, 95);
+      } catch (error) {
         hideLoading();
-        showWarning(response.error);
-        debugLog('ServiceNow query error: ' + response.error, 'error');
-        return;
+        showWarning(error.message || 'Error running query');
+        debugLog('ServiceNow query error: ' + error.message, 'error');
+        console.error('ServiceNow query error:', error);
       }
-      
-      // Process response with incremental progress updates
-      updateProgress(50, "Receiving data from ServiceNow");
-      debugLog('Received ServiceNow response');
-      
-      // Display warning if applicable
-      if (response.warning) {
-        showWarning(response.warning);
-        debugLog('Warning: ' + response.warning, 'warn');
-      }
-      
-      // Get record count for progress updates
-      const data = response.data;
-      const recordCount = getRecordCount(data);
-      debugLog(`Received ${recordCount} records from ServiceNow`);
-      
-      // Process and display the data
-      currentFormat = format;
-      currentExtractedData = data;
-      
-      // Process with progress updates
-      processQueryResponseWithProgress(data, recordCount, 50, 95);
     });
-  });
+  }
   
   // Process query response with progress updates
   function processQueryResponseWithProgress(data, recordCount, startProgress, endProgress) {
@@ -1044,41 +1063,40 @@ function initializeExtension() {
     try {
       const message = userMessage.value.trim();
       if (!message) return;
-      
       // Add user message to chat
       appendMessage('user', message);
       debugLog('User message sent: ' + (message.length > 30 ? message.substring(0, 30) + '...' : message));
-      
       // Clear input
       userMessage.value = '';
-      
-      // Show loading
-      showLoading("Analyzing with OpenAI...", false);
-      
+      // Create assistant placeholder
+      const assistantElem = appendMessage('assistant', 'AI is typing...');
+      debugLog('Assistant typing placeholder added');
       // Send to background script for API call
       chrome.runtime.sendMessage(
-        { action: "openaiChat", message: message },
+        { action: 'openaiChat', message: message },
         (response) => {
-          hideLoading();
-          
+          if (!assistantElem) return;
           if (!response) {
-            appendMessage('error', "No response received from extension backend");
+            assistantElem.classList.add('error');
+            const errBody = assistantElem.querySelector('.message-body');
+            if (errBody) errBody.textContent = 'No response received from extension backend';
             debugLog('No response received from extension backend', 'error');
             return;
           }
-          
           if (response.error) {
-            appendMessage('error', `Error: ${response.error}`);
+            assistantElem.classList.add('error');
+            const errBody = assistantElem.querySelector('.message-body');
+            if (errBody) errBody.textContent = `Error: ${response.error}`;
             debugLog('OpenAI error: ' + response.error, 'error');
           } else {
-            appendMessage('assistant', response.reply);
+            const body = assistantElem.querySelector('.message-body');
+            if (body) body.textContent = response.reply;
             debugLog('Added AI response to chat');
           }
         }
       );
     } catch (error) {
-      hideLoading();
-      console.error("Error sending message:", error);
+      console.error('Error sending message:', error);
       debugLog('Error sending message: ' + error.message, 'error');
       appendMessage('error', `Error sending message: ${error.message}`);
     }

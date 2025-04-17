@@ -203,11 +203,24 @@ async function handleOpenAIChat(request, sendResponse) {
         logDebug('Using original JSON data instead of XML for API call', 'info');
       }
 
-      // Call OpenAI API
+      // Call OpenAI API with prepared messages
       logDebug('Sending request to OpenAI API', 'info');
       
       try {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        // Prepare system message content including extracted data once
+        const dataForSystem = JSON.stringify(extractedDataForAPI);
+        const messagesPayload = [
+          {
+            role: "system",
+            content: systemPrompt + "\n\nExtracted Data: " + dataForSystem
+          },
+          ...result.chatHistory,
+          {
+            role: "user",
+            content: userMessage
+          }
+        ];
+        const response = await fetch('https://api.openai.com/v1/responses', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -215,17 +228,7 @@ async function handleOpenAIChat(request, sendResponse) {
           },
           body: JSON.stringify({
             model: model,
-            messages: [
-              {
-                role: "system",
-                content: systemPrompt
-              },
-              ...result.chatHistory,
-              {
-                role: "user",
-                content: userMessage + "\n\nExtracted Data: " + JSON.stringify(extractedDataForAPI, null, 2)
-              }
-            ],
+            input: messagesPayload,
             max_tokens: 1000
           })
         });
@@ -239,26 +242,47 @@ async function handleOpenAIChat(request, sendResponse) {
         const data = await response.json();
         logDebug('Received successful response from OpenAI', 'info');
         
+        // If there's an error key, report it
         if (data.error) {
           logDebug(`OpenAI returned error: ${data.error.message}`, 'error');
           sendResponse({ error: data.error.message });
           return;
         }
-
+        
+        // Determine assistant text: prefer convenience field, else parse raw output
+        let assistantText = '';
+        if (typeof data.output_text === 'string') {
+          assistantText = data.output_text;
+        } else {
+          // raw responses: object with 'output' array, or list in root or data.data
+          let outputs = [];
+          if (Array.isArray(data.output)) {
+            outputs = data.output;
+          } else if (Array.isArray(data)) {
+            outputs = data;
+          } else if (Array.isArray(data.data)) {
+            outputs = data.data;
+          }
+          if (outputs.length > 0) {
+            const firstMsg = outputs[0];
+            if (Array.isArray(firstMsg.content)) {
+              const item = firstMsg.content.find(el => el.type === 'output_text')
+                         || firstMsg.content[0];
+              assistantText = item && typeof item.text === 'string' ? item.text : '';
+            }
+          }
+        }
+        logDebug(`Parsed assistant text: ${assistantText}`, 'info');
         // Update chat history
         const updatedHistory = [
           ...result.chatHistory,
-          { role: "user", content: request.message },
-          { role: "assistant", content: data.choices[0].message.content }
+          { role: 'user', content: request.message },
+          { role: 'assistant', content: assistantText }
         ];
-        
         chrome.storage.local.set({ chatHistory: updatedHistory });
         logDebug('Chat history updated with new messages', 'info');
-        
-        sendResponse({ 
-          reply: data.choices[0].message.content,
-          updatedHistory: updatedHistory
-        });
+        // Send reply back to popup
+        sendResponse({ reply: assistantText, updatedHistory: updatedHistory });
       } catch (fetchError) {
         logDebug(`OpenAI fetch error: ${fetchError.message}`, 'error');
         throw fetchError;
