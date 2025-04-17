@@ -253,19 +253,31 @@ async function handleOpenAIChat(request, sendResponse) {
           return;
         }
         
-// Use the output_text field directly from the Responses API
-let assistantText = data.output_text || '';
-
-          // Fallback only if output_text is not available
-          if (!assistantText && data.output && data.output.length > 0) {
-            const firstMsg = data.output[0];
-            if (firstMsg.content && Array.isArray(firstMsg.content)) {
-              const textItem = firstMsg.content.find(item => item.type === 'output_text');
-              if (textItem && textItem.text) {
-                assistantText = textItem.text;
-              }
+        // Parse assistant text from Responses API
+        let assistantText = '';
+        function extractText(contents) {
+          return contents
+            .filter(item => item.type === 'output_text' && item.text)
+            .map(item => item.text)
+            .join('');
+        }
+        if (Array.isArray(data)) {
+          for (const event of data) {
+            if (event.content && Array.isArray(event.content)) {
+              assistantText += extractText(event.content);
             }
           }
+        } else if (typeof data.output_text === 'string') {
+          assistantText = data.output_text;
+        } else if (data.content && Array.isArray(data.content)) {
+          assistantText = extractText(data.content);
+        } else if (Array.isArray(data.output)) {
+          for (const event of data.output) {
+            if (event.content && Array.isArray(event.content)) {
+              assistantText += extractText(event.content);
+            }
+          }
+        }
         logDebug(`Parsed assistant text: ${assistantText}`, 'info');
         // Update chat history
         const updatedHistory = [
