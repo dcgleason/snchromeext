@@ -10,7 +10,6 @@
     "scripting",
     "downloads"
   ],
-
   "host_permissions": [
     "https://api.openai.com/*",
     "https://*.service-now.com/*"

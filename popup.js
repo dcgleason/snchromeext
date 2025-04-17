@@ -1627,6 +1627,7 @@ function extractDataFromPage(format) {
             }
           }
           
+          
           function escapeXml(unsafe) {
             if (unsafe === null || unsafe === undefined) return '';
             return String(unsafe)
