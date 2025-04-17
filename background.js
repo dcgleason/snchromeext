@@ -271,6 +271,7 @@ async function handleOpenAIChat(request, sendResponse) {
               assistantText += extractText(event.content);
             }
           }
+          
         } else if (typeof data.output_text === 'string') {
           assistantText = data.output_text;
         } else if (data.content && Array.isArray(data.content)) {
