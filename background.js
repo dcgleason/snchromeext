@@ -1,9 +1,10 @@
 // Background script for persistence
-chrome.runtime.onInstalled.addListener(() => {
-  console.log("TrustPoint ServiceNow Data Analyzer installed/updated");
-  
-  // Initialize default values in storage if not already set
-  chrome.storage.local.get([
+// Register onInstalled listener (guarded against missing API)
+try {
+  chrome.runtime.onInstalled.addListener(() => {
+    console.log("TrustPoint ServiceNow Data Analyzer installed/updated");
+    // Initialize default values in storage if not already set
+    chrome.storage.local.get([
     'extractedData', 
     'openaiApiKey', 
     'chatHistory', 
@@ -37,7 +38,10 @@ chrome.runtime.onInstalled.addListener(() => {
       logDebug('Extension initialized', 'info');
     }
   });
-});
+}); // end onInstalled listener
+} catch (e) {
+  console.error('[Background] runtime.onInstalled.addListener failed:', e);
+}
 
 // Listen for messages from popup or content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
