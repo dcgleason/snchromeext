@@ -208,18 +208,23 @@ async function handleOpenAIChat(request, sendResponse) {
       
       try {
         // Prepare system message content including extracted data once
-        const dataForSystem = JSON.stringify(extractedDataForAPI);
-        const messagesPayload = [
-          {
-            role: "system",
-            content: systemPrompt + "\n\nExtracted Data: " + dataForSystem
-          },
-          ...result.chatHistory,
-          {
-            role: "user",
-            content: userMessage
-          }
-        ];
+   // Prepare developer message content including extracted data once
+          const dataForSystem = JSON.stringify(extractedDataForAPI);
+          const messagesPayload = [
+            {
+              role: "developer",  // Change from "system" to "developer"
+              content: systemPrompt + "\n\nExtracted Data: " + dataForSystem
+            },
+            // Map existing chat history roles
+            ...result.chatHistory.map(msg => ({
+              role: msg.role === "system" ? "developer" : msg.role,
+              content: msg.content
+            })),
+            {
+              role: "user",
+              content: userMessage
+            }
+          ];
         const response = await fetch('https://api.openai.com/v1/responses', {
           method: 'POST',
           headers: {
@@ -229,7 +234,6 @@ async function handleOpenAIChat(request, sendResponse) {
           body: JSON.stringify({
             model: model,
             input: messagesPayload,
-            max_tokens: 1000
           })
         });
 
@@ -249,29 +253,19 @@ async function handleOpenAIChat(request, sendResponse) {
           return;
         }
         
-        // Determine assistant text: prefer convenience field, else parse raw output
-        let assistantText = '';
-        if (typeof data.output_text === 'string') {
-          assistantText = data.output_text;
-        } else {
-          // raw responses: object with 'output' array, or list in root or data.data
-          let outputs = [];
-          if (Array.isArray(data.output)) {
-            outputs = data.output;
-          } else if (Array.isArray(data)) {
-            outputs = data;
-          } else if (Array.isArray(data.data)) {
-            outputs = data.data;
-          }
-          if (outputs.length > 0) {
-            const firstMsg = outputs[0];
-            if (Array.isArray(firstMsg.content)) {
-              const item = firstMsg.content.find(el => el.type === 'output_text')
-                         || firstMsg.content[0];
-              assistantText = item && typeof item.text === 'string' ? item.text : '';
+// Use the output_text field directly from the Responses API
+let assistantText = data.output_text || '';
+
+          // Fallback only if output_text is not available
+          if (!assistantText && data.output && data.output.length > 0) {
+            const firstMsg = data.output[0];
+            if (firstMsg.content && Array.isArray(firstMsg.content)) {
+              const textItem = firstMsg.content.find(item => item.type === 'output_text');
+              if (textItem && textItem.text) {
+                assistantText = textItem.text;
+              }
             }
           }
-        }
         logDebug(`Parsed assistant text: ${assistantText}`, 'info');
         // Update chat history
         const updatedHistory = [
